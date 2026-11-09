@@ -1,51 +1,48 @@
-# Neuromatch
-Research project done under Neuromatch's Computational Neuroscience course
+# Neuromatch: decoding the block prior from pre-stimulus activity
 
-# Introduction & Hypotheses
+Can a mouse's learned expectation about which side the stimulus will appear on be read out from its frontal cortex *before* the stimulus arrives? Using public International Brain Laboratory (IBL) recordings, this notebook decodes the block prior, and the upcoming choice, from firing rates in the 0.5 s before stimulus onset.
 
-Under 0% contrast—when no visual cue is present—mice must rely entirely on their internal expectations to decide which side to choose. Recent work (Teodorescu et al. 2023, preprint: https://www.biorxiv.org/content/10.1101/2023.07.04.547684v1) shows that 20–30% of brain regions encode these priors in their pre‑stimulus activity, with secondary motor cortex (MOs) among the strongest.
+This is my individual analysis strand of a six-person, three-week group project at Neuromatch Academy (Computational Neuroscience, July 2025). Credit to my project group, whose wider project this strand belongs to.
 
-In this notebook, we examine whether MOs firing in the 0–0.5 s before stimulus onset predicts the trial’s block bias (probabilityLeft) and whether it carries information about the mouse’s eventual choice. Although choice decoding can often be achieved in downstream motor areas, our focus here is on the prior—what the mouse expects.
+**View the notebook:** [on GitHub](silenthypo_2.ipynb) · [nbviewer](https://nbviewer.org/github/tanishq-0/Neuromatch/blob/main/silenthypo_2.ipynb) (if GitHub's preview doesn't load) · [open in Colab](https://colab.research.google.com/github/tanishq-0/Neuromatch/blob/main/silenthypo_2.ipynb)
 
-All sessions tagged with MOs were selected and, in this initial analysis, included all neurons on that probe rather than anatomically restricting to neurons from MOs. Future work should refine this selection and also extend it to other frontal regions (e.g., PL, ACCd).
+## Key results
 
+- **Data:** one IBL session, **586 trials**, **730 sorted units** on a probe insertion that passes through secondary motor cortex (MOs). Features are each unit's firing rate in the 0.5 s before stimulus onset.
+- **Method:** logistic-regression decoders with **5-fold cross-validation** (± is the SD across folds), tested against **50 label permutations**.
 
-## Hypotheses & Analyses
+| Decoding target | Trials | Accuracy | Largest class | Permutation test |
+|---|---|---|---|---|
+| Block prior, 3 classes (P(left) = 0.2 / 0.5 / 0.8) | 586 | **57.7% ± 10.6%** | 264 of 586 | 0 of 50 permutations as high |
+| Block prior, strong-bias blocks only (0.2 vs 0.8) | 496 | **58.5% ± 4.2%** | 264 of 496 | 0 of 50 permutations as high |
+| Choice, all contrasts | 586 | 51.5% ± 3.4% | 333 of 586 | p = 0.22 |
+| Choice, zero-contrast trials | 74 | 59.4% ± 7.4% | 44 of 74 | p = 0.18 |
 
-We ran four tests:
+- **The block prior is decodable before the stimulus appears.** Both prior decoders were significant under label-permutation testing: none of the 50 shuffled-label decoders reached the real accuracy.
+- **Choice was not decodable: a null result.** On zero-contrast trials, where there is no visual evidence and the mouse must rely on its prior, accuracy (59.4%) was no better than always guessing the more common choice (44 of 74 trials).
 
-1. **Predict block bias (all blocks)**  
-   - Use MOs firing 0–0.5 s before stimulus to predict `probabilityLeft` (0.2, 0.5, 0.8) on every trial.  
-   - **Result**: 57.7 % accuracy (±10.6 %), p < 0.001.  
+## How to run
 
-2. **Predict block bias (strong bias only)**  
-   - Restrict to 0‑contrast trials with `probabilityLeft` = 0.2 or 0.8.  
-   - **Result**: 58.5 % accuracy (±4.2 %), p < 0.001.  
+The notebook was written for Google Colab; use the "Open in Colab" badge at the top of `silenthypo_2.ipynb`. To run it locally instead:
 
-3. **Predict choice (all contrasts)**  
-   - Predict left vs right choice from pre‑stimulus activity over all contrasts.  
-   - **Result**: 51.5 % accuracy (±3.4 %), p = 0.22 (not significant).  
+```bash
+pip install ONE-api ibllib scikit-learn jupyter
+jupyter notebook silenthypo_2.ipynb
+```
 
-4. **Predict choice (zero contrast)**  
-   - Predict choice with no sensory evidence (contrast = 0).  
-   - **Result**: 59.4 % accuracy (±7.4 %), p = 0.18 (not significant).  
+Data are downloaded from IBL's public OpenAlyx server. `ONE(password='international')` is IBL's documented public, read-only login, not a private credential. The session's spike files are large (several hundred MB).
 
+## Project structure
 
-## Interpretation
-
-- MOs firing *before* the stimulus reliably reflects the block bias the mouse has learned—even with no visual cue.  
-- Pre‑stimulus MOs activity does **not** reliably predict the actual choice, except weakly under zero contrast.  
-- This supports the idea that **priors are encoded in frontal cortex**, while choice signals may rely on other regions or later processing stages.  
-
+```
+silenthypo_2.ipynb   data loading, pre-stimulus feature extraction, decoders, permutation tests
+README.md
+LICENSE
+```
 
 ## Limitations
 
--  **Selected a single session** with MOs units and used **all sorted clusters** in that probe’s range, rather than sub-selecting only the most anterior or strictly “MOs‐only” channels.
-
-- Results should be replicated across additional sessions and, ideally, across multiple frontal subregions (PL, ACCd) to confirm generality.
-
-- **Pre-processing and dimensionality reduction** (e.g., PCA, regularization) were minimal—tuning these steps may enhance decoding performance.
-
-- **Model hyperparameters** were left at defaults; systematic optimization (e.g., grid search, nested CV) could further boost accuracy.
-
-- Increasing number of trials could also improve the models generalization.
+- One session and one probe. All sorted units on the probe were used, not only those anatomically in MOs, so the results need replicating across sessions and across frontal regions (e.g. PL, ACCd).
+- With 50 permutations, the smallest p-value the test can show is coarse.
+- The cross-validation folds were not shuffled, and label permutation breaks the task's block structure. Slow drifts in firing rate could therefore contribute to the prior decoding. A null that keeps the block structure, such as pseudo-sessions, would be a stricter test.
+- The 730 features outnumber the trials in every analysis. Hyperparameters were left at their defaults, with no dimensionality reduction or nested cross-validation.
